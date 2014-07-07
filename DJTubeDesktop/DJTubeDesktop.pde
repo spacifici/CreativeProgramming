@@ -7,8 +7,6 @@ int tvx, tvy;
 int animx, animy;
 int deck1x, deck1y;
 int deck2x, deck2y;
-int crossfaderX, crossfaderY;
-int cursorX, cursorY;
 
 boolean deck1Playing = false;
 boolean deck2Playing = false;
@@ -19,30 +17,33 @@ int margin = width/40;
 PImage [] images;
 PImage [] recordPlayer;
 PImage TV;
-PImage crossfader;
-PImage cursor;
 Maxim maxim;
 AudioPlayer player1;
 AudioPlayer player2;
-float speedAdjust=1.0;
-boolean draggingCursor = false;
+float speedAdjust1=1.0;
+float speedAdjust2=1.0;
+float speedAdjust3=0.0;
+Fader fader1, fader2, fader3, fader4;
+int fadersBaseY = 550;
+int fadersBaseX = 150;
 
 void setup()
 {
   size(768,1024);
   imageMode(CENTER);
-  cursorX = width/2;
   images = loadImages("Animation_data/movie", ".jpg", 183);
   recordPlayer = loadImages("black-record_", ".png", 36);
   TV = loadImage("TV.png");
-  crossfader = loadImage("crossfader.png");
-  cursor = loadImage("cursor.png");
   maxim = new Maxim(this);
   player1 = maxim.loadFile("beat1.wav");
   player1.setLooping(true);
   player2 = maxim.loadFile("beat2.wav");
   player2.setLooping(true);
   background(10);
+  fader1 = new Fader(fadersBaseX,fadersBaseY, "Cross Fader");
+  fader2 = new Fader(fadersBaseX,fadersBaseY + 50, "Track1 Speed");
+  fader3 = new Fader(fadersBaseX,fadersBaseY + 100, "Track2 Speed");
+  fader4 = new Fader(fadersBaseX,fadersBaseY + 150, "Video speed");
 }
 
 void draw()
@@ -57,19 +58,17 @@ void draw()
   deck2x = (width/2)+recordPlayer[0].width/2+(margin*10);
   deck2y = deck1y;
   image(recordPlayer[(int) rotateDeck2], deck2x, deck2y, recordPlayer[0].width, recordPlayer[0].height);
-  crossfaderX = width / 2;
-  crossfaderY = deck2y + margin + recordPlayer[1].height;  
-  image(crossfader, crossfaderX, crossfaderY, crossfader.width, crossfader.height);
-  cursorY = crossfaderY+20;
-  image(cursor, cursorX, cursorY, cursor.width, cursor.height);
   
   if (deck1Playing || deck2Playing) {
     
-    player1.speed(speedAdjust);
-    player2.speed((player2.getLengthMs()/player1.getLengthMs())*speedAdjust);
-    currentFrame= currentFrame+speedAdjust / 2;
+    player1.speed(speedAdjust1);
+    player2.speed(speedAdjust2);
+    // player2.speed((player2.getLengthMs()/player1.getLengthMs())*speedAdjust);
+    currentFrame= currentFrame+speedAdjust3 / 2;
   }
 
+  if (currentFrame < 0)
+    currentFrame = images.length - 1;
   if (currentFrame >= images.length) {
 
     currentFrame = 0;
@@ -77,7 +76,7 @@ void draw()
 
   if (deck1Playing) {
 
-    rotateDeck1 += 1*speedAdjust;
+    rotateDeck1 += 1*speedAdjust1;
 
     if (rotateDeck1 >= recordPlayer.length) {
 
@@ -87,13 +86,17 @@ void draw()
 
   if (deck2Playing) {
 
-    rotateDeck2 += 1*speedAdjust;
+    rotateDeck2 += 1*speedAdjust2;
 
     if (rotateDeck2 >= recordPlayer.length) {
 
       rotateDeck2 = 0;
     }
   }
+  fader1.draw();
+  fader2.draw();
+  fader3.draw();
+  fader4.draw();
 }
 
 
@@ -129,27 +132,34 @@ void mouseClicked()
 }
 
 void mousePressed() {
- int x = mouseX - (cursorX - cursor.width / 2);
- int y = mouseY - (cursorY - cursor.height / 2);
- 
- if (x > 0 && x < cursor.width && y > 0 && y < cursor.height)
-   draggingCursor = true;
+  fader1.mousePressed();
+  fader2.mousePressed();
+  fader3.mousePressed();
+  fader4.mousePressed();
 }
 
 void mouseReleased() {
-  draggingCursor = false;
+  fader1.mouseReleased();
+  fader2.mouseReleased();
+  fader3.mouseReleased();
+  fader4.mouseReleased();
 }
 
 void mouseDragged() {
-  if (draggingCursor) {
-    int minX = width / 2 - 177;
-    int maxX = minX + 177 * 2;
-    cursorX = mouseX;
-    if (cursorX < minX)
-      cursorX = minX;
-    if (cursorX > maxX)
-      cursorX = maxX;
-    speedAdjust=map(cursorX,minX,maxX,0,2);
-  }
+  fader1.mouseDragged();
+  fader2.mouseDragged();
+  fader3.mouseDragged();
+  fader4.mouseDragged();
+  float volume1 = map(fader1.getValue(), 0.0f, 1.0f, 2.0f, 0.0f);
+  if (volume1 > 1)
+    volume1 = 1;
+  float volume2 = map(fader1.getValue(), 0.0f, 1.0f, 0.0f, 2.0f);
+  if (volume2 > 1)
+    volume2 = 1;
+  player1.volume(volume1);
+  player2.volume(volume2);
+  speedAdjust1 = map(fader2.getValue(), 0.0f, 1.0f, 0.0f, 2.0f);
+  speedAdjust2 = map(fader3.getValue(), 0.0f, 1.0f, 0.0f, 2.0f);
+  speedAdjust3 = map(fader4.getValue(), 0.0f, 1.0f, -2.0f, 2.0f);
 }
 
