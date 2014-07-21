@@ -12,14 +12,17 @@ AudioPlayer cancan;
 Physics physics;
 Body bodies[];
 int size = 10;
-int objects = 128;
+int objects = 64;
+float maxV = 1;
+float maxP = 0.1;
+
 // CollisionDetector detector;
 // boolean removeBody;
 
 void setup() {
   size(1024, 768);
   frameRate(60);
-
+  background(0);
   physics = new Physics(this, width, height);
   physics.setCustomRenderingMethod(this, "visualizerRenderer");
   physics.setDensity(100.0);
@@ -39,6 +42,7 @@ void setup() {
   cancan = maxim.loadFile("cancan.wav");
   cancan.speed(.5);
   cancan.setAnalysing(true);
+  cancan.setLooping(false);
   cancan.play();
 }
 
@@ -46,11 +50,17 @@ void draw() {
 }
 
 void visualizerRenderer(World world) {
-  background(0);
-  float ps[] = cancan.getPowerSpectrum();
-  int range = ps.length / objects;
+  fill(0, 5);
+  rect(0, 0, width, height);
+  strokeWeight(0);
+  float ps[] = reducedSpectrum();
+
   for (int i = 0; i < objects; i++)
   {
+    float v = bodies[i].getLinearVelocity().length();
+    if (v > maxV) {
+      maxV = v;
+    }
     Vec2 worldCenter = bodies[i].getWorldCenter();
     Vec2 pos = physics.worldToScreen(worldCenter);
     float angle = physics.getAngle(bodies[i]);
@@ -59,20 +69,49 @@ void visualizerRenderer(World world) {
     rotate(-angle);
     int red = (int) map(i, 0, objects, 255, 0);
     int green = (int) map(i, 0, objects, 0, 255);
-    fill(red, green, 0);
+    int blue = (int) map(v, 0, maxV, 0, 255);
+    fill(red, green, blue);
     rect(-size/2, -size / 2, size, size);
     popMatrix();
 
-    // update model
-    float p = ps[range*i];
-    if (p > 0.25 && bodies[i].getLinearVelocity().length() < 1.0) {
-      float dir = random(-1,1);
-      println("Dir: " + dir);
-      float ix = dir * 3000;
-      float iy = 7000 * p;
-      Vec2 force = new Vec2(ix, iy);
-      bodies[i].applyImpulse(force, bodies[i].getWorldCenter());
+    if (cancan.isPlaying()) {
+      // update model
+      float p = ps[i];
+      if (p > maxP)
+        maxP = p;
+        
+      // Random choose 10% of the block to move around
+      if (p <= 0.01 && random(1, 100) > 90)
+        p = maxP;
+      if (p > 0.25 && v < 1.0) {
+        float dir = random(-1,1);
+        float ix = dir * 3000;
+        float iy = 7000 * p;
+        Vec2 force = new Vec2(ix, iy);
+        bodies[i].applyImpulse(force, bodies[i].getWorldCenter());
+      }
     }
   }    
 }
-  
+
+float[] reducedSpectrum() {
+  float[] acc = new float[objects];
+  float[] c = new float[objects];
+  float[] sp = cancan.getPowerSpectrum();
+  int range = round(sp.length / objects + 0.5);
+  for (int i = 0; i < objects; i++) {
+    acc[i] = 0.0f;
+    c[i] = 0.0f;
+  }
+  for (int i = 0; i < sp.length; i++) {
+    int acci = i / range;
+    acc[acci] += sp[i];
+    c[acci]++;
+  }
+  for (int i = 0; i < objects; i++) {
+    if (c[i] < 1)
+      c[i] = 1;
+    acc[i] /= c[i];
+  }
+  return acc;
+}
