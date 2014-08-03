@@ -13,7 +13,7 @@
 import ddf.minim.*;
 
 // The number of TRACKS available
-static int TRACKS = 4;
+static int TRACKS = 8;
 
 static final int TRACK_STATE_EMPTY      = 11;
 static final int TRACK_STATE_RECORDING  = 12;
@@ -21,6 +21,9 @@ static final int TRACK_STATE_RECORDED   = 13;
 static final int TRACK_STATE_PLAYING    = 14;
 
 static final int FRAME_RATE = 60;
+
+static final int BEATS = 16;
+static final int BEAT_SIZE = 30;
 
 Minim minim;
 AudioInput in;
@@ -32,7 +35,10 @@ Toggle recButtons[];
 Toggle playButtons[];
 boolean recording;
 int recordingTrack;
-int frame;
+boolean [][] beat;
+
+int playhead;
+int currentbeat = 0;
 
 void setup()
 {
@@ -52,17 +58,21 @@ void setup()
   recording = false;
   recordingTrack = -1;
   
+  // Init beat
+  beat = new boolean[TRACKS][BEATS];
+  
   // Init interface element
   recButtons = new Toggle[TRACKS];
   playButtons = new Toggle[TRACKS];
   for (int i = 0; i < TRACKS; i++) {
     recorders[i] = minim.createRecorder(in, "Track"+i+".wav");
     tracksStates[i] = TRACK_STATE_EMPTY;
-    recButtons[i] = new Toggle("REC", 20, 220 + 40 * i, 80, 30);
-    playButtons[i] = new Toggle("PLAY", 120, 220 + 40 * i, 80, 30);
+    recButtons[i] = new Toggle("REC", 20, 20 + 40 * i, 50, 30);
+    playButtons[i] = new Toggle("PLAY", 80, 20 + 40 * i, 50, 30);
   }
   
-  int frame = 0;
+  playhead = 0;
+  currentbeat = 0;
 }
 
 void draw()
@@ -73,33 +83,37 @@ void draw()
     recButtons[i].display();
     playButtons[i].display();
     
-    if (tracksStates[i] == TRACK_STATE_PLAYING && frame == 0) {
-      println("Triggering sample "+ i);
-      samples[i].stop();
+    if (playhead == 0 && tracksStates[i] == TRACK_STATE_PLAYING && beat[i][currentbeat]) {
+      // samples[i].stop();
+      println("Playing track "+ i);
       samples[i].trigger();
     }
   }
-  // draw the waveforms
-  // the values returned by left.get() and right.get() will be between -1 and 1,
-  // so we need to scale them up to see the waveform
-  for(int i = 0; i < in.bufferSize() - 1; i++)
-  {
-    line(i, 50 + in.left.get(i)*50, i+1, 50 + in.left.get(i+1)*50);
-    line(i, 150 + in.right.get(i)*50, i+1, 150 + in.right.get(i+1)*50);
-  }
   
-  frame++;
-  frame %= FRAME_RATE;
-  /*
-  if ( recorder.isRecording() )
-  {
-    text("Currently recording...", 5, 15);
+  if (playhead == 0) {
+    currentbeat++;
+    currentbeat %= BEATS;
   }
-  else
-  {
-    text("Not recording.", 5, 15);
+  playhead++;
+  playhead %= 10;
+  
+  // draw a moving square showing where the sequence is 
+
+  // draw beat
+  stroke(0);
+  for (int t = 0; t < TRACKS; t++) {
+    int y = 20 + (10 + BEAT_SIZE) * t;
+    for (int b = 0; b < BEATS; b++) {
+      int x = 140 + (10 + BEAT_SIZE) * b;      
+      if (beat[t][b])
+        fill(0,255,0);
+      else
+        fill(255, 0, 0);
+      rect(x, y, BEAT_SIZE, BEAT_SIZE);
+    }
   }
-  */
+  fill(0, 0, 200, 120);
+  rect(140 + (10 + BEAT_SIZE) * currentbeat, 10, BEAT_SIZE, (BEAT_SIZE + 10) * TRACKS + 10);
 }
 
 void mousePressed() {
@@ -134,6 +148,7 @@ void mouseReleased() {
       recButtons[i].set(false);
     }
     
+    // Handle playing
     isClicked = playButtons[i].mouseReleased();
     if (!recording && isClicked)
       switch (tracksStates[i]) {
@@ -159,7 +174,18 @@ void mouseReleased() {
           tracksStates[i] = TRACK_STATE_EMPTY;
           break;             
       }
+  }
+  for (int t = 0; t < TRACKS; t++) {
+    int y = 20 + (10 + BEAT_SIZE) * t;
+    for (int b = 0; b < BEATS; b++) {
+      int x = 140 + (10 + BEAT_SIZE) * b;
+      int dx = mouseX - x;
+      int dy = mouseY - y;
+      if (dx >= 0 && dy >= 0 && dx < BEAT_SIZE && dy < BEAT_SIZE) {
+        beat[t][b] = !beat[t][b];
+      }      
     }
+  }  
 }
 
 /*
