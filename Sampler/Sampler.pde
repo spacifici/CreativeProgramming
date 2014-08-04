@@ -11,6 +11,7 @@
   */
 
 import ddf.minim.*;
+import java.io.File;
 
 // The number of TRACKS available
 static int TRACKS = 8;
@@ -27,7 +28,7 @@ static final int BEAT_SIZE = 30;
 
 Minim minim;
 AudioInput in;
-AudioRecorder[] recorders;
+AudioRecorder recorder;
 AudioSample[] samples;
 
 int tracksStates[];
@@ -49,7 +50,7 @@ void setup()
   in = minim.getLineIn();
 
   // Init recorders and audio samples
-  recorders = new AudioRecorder[TRACKS]; 
+  // recorders = new AudioRecorder[TRACKS]; 
   samples = new AudioSample[TRACKS];
   // textFont(createFont("Arial", 12));
   
@@ -65,7 +66,7 @@ void setup()
   recButtons = new Toggle[TRACKS];
   playButtons = new Toggle[TRACKS];
   for (int i = 0; i < TRACKS; i++) {
-    recorders[i] = minim.createRecorder(in, "Track"+i+".wav");
+    // recorders[i] = minim.createRecorder(in, "Track"+i+".wav");
     tracksStates[i] = TRACK_STATE_EMPTY;
     recButtons[i] = new Toggle("REC", 20, 20 + 40 * i, 50, 30);
     playButtons[i] = new Toggle("PLAY", 80, 20 + 40 * i, 50, 30);
@@ -132,16 +133,21 @@ void mouseReleased() {
     if (!recording && isClicked) {
       // Start recording
       println("Start recording " + i);
+      String filename = "Track"+i+".wav";
+      File f = new File(filename);
+      if (f.exists())
+        f.delete();
       recording = true;
+      recorder = minim.createRecorder(in, filename);
       recordingTrack = i;
-      recorders[i].beginRecord();
+      recorder.beginRecord();
       tracksStates[i] = TRACK_STATE_RECORDING;   
     } else if (recording && isClicked && (i == recordingTrack)) {
       println("Stop recording " + i);
       recording = false;
       recordingTrack = -1;
-      recorders[i].endRecord();
-      recorders[i].save();
+      recorder.endRecord();
+      recorder.save();
       tracksStates[i] = TRACK_STATE_RECORDED;
       samples[i] = minim.loadSample("Track"+i+".wav"); 
     } else if (recordingTrack != i) {
